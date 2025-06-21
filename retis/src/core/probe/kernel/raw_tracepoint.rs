@@ -109,7 +109,7 @@ impl<'a> RawTracepointBuilder<'a> {
             .is_empty();
         let raw_tp_cookie = inspect::parse_struct("bpf_raw_tp_link")?
             .iter()
-            .any(|field| field == "cookie");
+            .any(|(_, field)| field == "cookie");
 
         Ok(get_cookie && raw_tp_cookie)
     }

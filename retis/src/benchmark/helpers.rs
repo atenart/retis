@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::{
     bindings::{
-        common_uapi::kernel_event, ct_hook_uapi::*, dev_hook_uapi::*, events_uapi::*,
+        common_uapi::kernel_event, ct_hook_uapi::*, dev_common_uapi::*, events_uapi::*,
         kernel_exec_tp_hook_uapi::exec_event, netns_hook_uapi::*, skb_hook_uapi::*,
         tracking_hook_uapi::skb_tracking_event,
     },

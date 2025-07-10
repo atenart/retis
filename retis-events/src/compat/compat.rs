@@ -44,6 +44,8 @@ static FIXUPS: Lazy<Vec<Vec<CompatFixup<'static>>>> = Lazy::new(|| {
             Move("ct/tcp_state", "ct/proto_state"),
             Move("ct/parent/tcp_state", "ct/parent/proto_state"),
             Add("packet/kind", CompatValue::String("ethernet".to_string())),
+            // FIXME
+            Move("foo", "skb/data_ref"),
         ],
     ]
 });

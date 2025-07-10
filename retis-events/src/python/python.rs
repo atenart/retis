@@ -12,6 +12,7 @@ use pyo3::{
 };
 
 use crate::{
+    compat::{python::compat_fixup, CompatVersion},
     file::{rotate::*, *},
     *,
 };
@@ -42,7 +43,7 @@ use crate::{
 /// way. Here the event is represented as a dictionary. This allows quick
 /// investigation of events in the interpreter.
 #[pyclass(name = "Event")]
-pub struct PyEvent(Py<Event>);
+pub struct PyEvent(pub(crate) Py<Event>);
 
 // We need this to make it a pyclass.
 //
@@ -51,7 +52,14 @@ unsafe impl Sync for PyEvent {}
 
 impl PyEvent {
     pub(crate) fn new(py: Python<'_>, event: Event) -> PyResult<Self> {
-        Ok(Self(Py::new(py, event)?))
+        let mut event = Self(Py::new(py, event)?);
+
+        // FIXME
+        if let Err(e) = compat_fixup(py, &mut event, CompatVersion::V0) {
+            return Err(PyRuntimeError::new_err(format!("{e}")));
+        }
+
+        Ok(event)
     }
 }
 

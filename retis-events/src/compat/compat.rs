@@ -1,44 +1,50 @@
 #![allow(dead_code)] // Not everything is used in all versions.
 
 use anyhow::{anyhow, bail, Result};
+use once_cell::sync::Lazy;
 use semver::{Version, VersionReq};
 
 /// When making breaking changes in the event, fixups should be added.
 use CompatFixup::*;
-const FIXUPS: &[&[CompatFixup]] = &[
-    /* CompatVersion::V0 */
-    &[],
-    /* CompatVersion::V1 */
-    &[
-        Add("ct/ct_status", CompatValue::Uint(0)),
-        Move("skb/packet/packet", "skb/packet/raw"),
-        Move("skb/ns/netns", "skb/ns/inum"),
-        Move("skb/packet", "packet"),
-        Move("skb/dev", "dev"),
-        Move("skb/ns", "netns"),
-        Move("packet/raw", "packet/data"),
-    ],
-    /* CompatVersion::V2 */
-    &[
-        Add("startup/machine", CompatValue::Section),
-        Add(
-            "startup/machine/kernel_release",
-            CompatValue::String("unknown"),
-        ),
-        Add(
-            "startup/machine/kernel_version",
-            CompatValue::String("unknown"),
-        ),
-        Add(
-            "startup/machine/hardware_name",
-            CompatValue::String("unknown"),
-        ),
-        Add("startup/cmdline", CompatValue::String("unknown")),
-        Move("ct/tcp_state", "ct/proto_state"),
-        Move("ct/parent/tcp_state", "ct/parent/proto_state"),
-        Add("packet/kind", CompatValue::String("ethernet")),
-    ],
-];
+static FIXUPS: Lazy<Vec<Vec<CompatFixup<'static>>>> = Lazy::new(|| {
+    vec![
+        /* CompatVersion::V0 */
+        vec![],
+        /* CompatVersion::V1 */
+        vec![
+            Add("ct/ct_status", CompatValue::Uint(0)),
+            Move("skb/packet/packet", "skb/packet/raw"),
+            Move("skb/ns/netns", "skb/ns/inum"),
+            Move("skb/packet", "packet"),
+            Move("skb/dev", "dev"),
+            Move("skb/ns", "netns"),
+            Move("packet/raw", "packet/data"),
+        ],
+        /* CompatVersion::V2 */
+        vec![
+            Add("startup/machine", CompatValue::Section),
+            Add(
+                "startup/machine/kernel_release",
+                CompatValue::String("unknown".to_string()),
+            ),
+            Add(
+                "startup/machine/kernel_version",
+                CompatValue::String("unknown".to_string()),
+            ),
+            Add(
+                "startup/machine/hardware_name",
+                CompatValue::String("unknown".to_string()),
+            ),
+            Add(
+                "startup/cmdline",
+                CompatValue::String("unknown".to_string()),
+            ),
+            Move("ct/tcp_state", "ct/proto_state"),
+            Move("ct/parent/tcp_state", "ct/parent/proto_state"),
+            Add("packet/kind", CompatValue::String("ethernet".to_string())),
+        ],
+    ]
+});
 
 enum CompatFixup<'a> {
     Remove(&'a str),
@@ -173,7 +179,7 @@ pub(crate) enum CompatValue {
     Bool(bool),
     Int(i64),
     Uint(u64),
-    String(&'static str),
+    String(String),
     // Non-leaf compound types
     Section,
 }

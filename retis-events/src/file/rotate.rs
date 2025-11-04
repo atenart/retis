@@ -66,8 +66,12 @@ impl RotateWriter {
     ) -> Result<Self> {
         // Generate a startup event.
         let index = 0;
-        let startup =
-            serde_json::to_vec(&startup_event(cmdline, monotonic_offset, index, policy)?)?;
+        let startup = serde_json::to_vec(&startup_event(
+            cmdline,
+            &monotonic_offset,
+            index,
+            policy.as_ref(),
+        )?)?;
 
         let (inner, written) = Self::new_file(file.as_ref(), &startup)?;
 
@@ -130,9 +134,9 @@ impl RotateWriter {
         let startup = serde_json::to_vec(
             &startup_event(
                 &self.cmdline,
-                self.monotonic_offset,
+                &self.monotonic_offset,
                 self.index,
-                self.policy,
+                self.policy.as_ref(),
             )
             .map_err(io::Error::other)?,
         )
@@ -237,9 +241,9 @@ impl Drop for RotateWriter {
 /// post-processing time to have insights about the collection environment.
 pub(crate) fn startup_event(
     cmdline: &str,
-    clock_monotonic_offset: TimeSpec,
+    clock_monotonic_offset: &TimeSpec,
     index: u32,
-    policy: Option<RotationPolicy>,
+    policy: Option<&RotationPolicy>,
 ) -> Result<Event> {
     let mut event = Event::new();
     event.common = Some(CommonEvent {
@@ -257,13 +261,16 @@ pub(crate) fn startup_event(
             .unwrap_or("unspec")
             .to_string(),
         cmdline: cmdline.to_string(),
-        clock_monotonic_offset,
+        clock_monotonic_offset: clock_monotonic_offset.clone(),
         machine: MachineInfo {
             kernel_release: release.to_string(),
             kernel_version: version.to_string(),
             hardware_name: machine.to_string(),
         },
-        split_file: policy.map(|policy| SplitFile { id: index, policy }),
+        split_file: policy.map(|policy| SplitFile {
+            id: index,
+            policy: *policy,
+        }),
     });
 
     Ok(event)

@@ -52,7 +52,7 @@ impl EventFormatter {
             // As this only happens if a startup section is seen, take a write
             // lock regardless of the underlying format.
             if let EventFormat::Text(ref mut format) = *self.format.write().unwrap() {
-                format.monotonic_offset = Some(startup.clock_monotonic_offset);
+                format.monotonic_offset = Some(startup.clock_monotonic_offset.clone());
             }
         }
 
@@ -113,7 +113,7 @@ impl PrintSeries {
 
                 for event in series.events.iter() {
                     if let Some(startup) = &event.startup {
-                        format.monotonic_offset = Some(startup.clock_monotonic_offset);
+                        format.monotonic_offset = Some(startup.clock_monotonic_offset.clone());
                     }
 
                     content.push_str(&format!("{}", event.display(format, &fconf)));

@@ -218,7 +218,8 @@ impl EventParser {
             EnhancedPacketBlock {
                 interface_id: id,
                 timestamp: Duration::from_nanos(i64::from(
-                    TimeSpec::new(0, common.timestamp as i64) + self.ts_off.unwrap_or_default(),
+                    TimeSpec::new(0, common.timestamp as i64)
+                        + self.ts_off.clone().unwrap_or_default(),
                 ) as u64),
                 original_len: packet.len,
                 data: Cow::Borrowed(&packet.data.0),

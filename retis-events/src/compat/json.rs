@@ -58,7 +58,7 @@ impl EventCompatibility for serde_json::Value {
         };
 
         let value = match value {
-            CompatValue::Null => serde_json::Value::Null,
+            CompatValue::Null() => serde_json::Value::Null,
             CompatValue::Bool(val) => serde_json::Value::Bool(val),
             CompatValue::Int(val) => serde_json::Value::Number(
                 serde_json::Number::from_i128(val.into())
@@ -69,7 +69,7 @@ impl EventCompatibility for serde_json::Value {
                     .ok_or_else(|| anyhow!("Failed to convert {val} to a serde_json Number"))?,
             ),
             CompatValue::String(val) => serde_json::Value::String(val),
-            CompatValue::Section => serde_json::Value::Object(serde_json::Map::new()),
+            CompatValue::Section() => serde_json::Value::Object(serde_json::Map::new()),
         };
 
         match target {
@@ -93,7 +93,7 @@ impl EventCompatibility for serde_json::Value {
         };
 
         // Add the new field/section and initialize it to Null.
-        self.add(to, CompatValue::Null)?;
+        self.add(to, CompatValue::Null())?;
         // Set the new field value. Unwrap as we just added the field/section.
         *get_mut_ref(self, to)?.unwrap() = val;
         // Remove the old field/section.

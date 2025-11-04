@@ -115,7 +115,7 @@ impl AddTracking {
 
                         // Add an entry in the skb tracking table so that futre non-ovs events also
                         // get the tracking id from the original (upcalled) packet.
-                        if let Some(skb) = event.skb_tracking {
+                        if let Some(skb) = &event.skb_tracking {
                             self.skb_tracking.insert(skb.tracking_id(), info.clone());
                         }
 

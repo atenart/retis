@@ -193,9 +193,9 @@ impl FileStats {
             println!(
                 "First event at: {}",
                 format_date_time(
-                    TimeFormat::UtcDate,
+                    &TimeFormat::UtcDate,
                     first_ts,
-                    Some(self.startup.clock_monotonic_offset)
+                    Some(&self.startup.clock_monotonic_offset)
                 )
             );
         }
@@ -203,9 +203,9 @@ impl FileStats {
             println!(
                 "Last event at: {}",
                 format_date_time(
-                    TimeFormat::UtcDate,
+                    &TimeFormat::UtcDate,
                     last_ts,
-                    Some(self.startup.clock_monotonic_offset)
+                    Some(&self.startup.clock_monotonic_offset)
                 )
             );
         }

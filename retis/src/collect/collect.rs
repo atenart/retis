@@ -534,7 +534,7 @@ impl Collectors {
                 } else {
                     TimeFormat::MonotonicTimestamp
                 })
-                .monotonic_offset(self.monotonic_offset)
+                .monotonic_offset(self.monotonic_offset.clone())
                 .print_ll(collect.print_ll);
 
             formatters.push((
@@ -560,7 +560,7 @@ impl Collectors {
                         },
                         collect.out_rotate_count,
                         &main_config.cmdline,
-                        self.monotonic_offset,
+                        self.monotonic_offset.clone(),
                     )
                     .or_else(|e| bail!("Could not create or open '{}': {e}", out.display()))?,
                 ),
@@ -585,7 +585,7 @@ impl Collectors {
 
         self.register_probes(collect, main_config)?;
         let (format, offset) = if collect.utc {
-            (TimeFormat::UtcDate, Some(self.monotonic_offset))
+            (TimeFormat::UtcDate, Some(self.monotonic_offset.clone()))
         } else {
             Default::default()
         };

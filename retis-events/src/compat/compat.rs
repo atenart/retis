@@ -4,6 +4,8 @@ use anyhow::{anyhow, bail, Result};
 use once_cell::sync::Lazy;
 use semver::{Version, VersionReq};
 
+use crate::event_type;
+
 /// When making breaking changes in the event, fixups should be added.
 use CompatFixup::*;
 static FIXUPS: Lazy<Vec<Vec<CompatFixup<'static>>>> = Lazy::new(|| {
@@ -22,7 +24,7 @@ static FIXUPS: Lazy<Vec<Vec<CompatFixup<'static>>>> = Lazy::new(|| {
         ],
         /* CompatVersion::V2 */
         vec![
-            Add("startup/machine", CompatValue::Section),
+            Add("startup/machine", CompatValue::Section()),
             Add(
                 "startup/machine/kernel_release",
                 CompatValue::String("unknown".to_string()),
@@ -155,7 +157,7 @@ pub(crate) fn compatibility_fixup(
             CompatFixup::Move(from, to) => event.r#move(from, to),
         }),
         CompatStrategy::Forward(_) => fixups.iter().rev().try_for_each(|fix| match fix {
-            CompatFixup::Remove(target) => event.add(target, CompatValue::Null),
+            CompatFixup::Remove(target) => event.add(target, CompatValue::Null()),
             CompatFixup::Add(target, _) => event.remove(target),
             CompatFixup::Move(from, to) => event.r#move(to, from),
         }),
@@ -173,15 +175,16 @@ pub(crate) trait EventCompatibility {
 }
 
 /// Values fields being added as part of the compatibility logic.
-#[derive(Clone)]
+#[event_type]
+#[derive(PartialEq, Eq)]
 pub(crate) enum CompatValue {
-    Null,
+    Null(),
     Bool(bool),
     Int(i64),
     Uint(u64),
     String(String),
     // Non-leaf compound types
-    Section,
+    Section(),
 }
 
 /// Fields to remove/add/move are pointed by `target`s. They are expressed as a

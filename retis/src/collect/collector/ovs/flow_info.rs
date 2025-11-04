@@ -223,7 +223,7 @@ impl FlowEnricher {
                         };
 
                         let flow_info = OvsFlowInfoEvent {
-                            ufid: task.ufid,
+                            ufid: task.ufid.clone(),
                             flow: task.flow,
                             sf_acts: task.sf_acts,
                             dpflow,

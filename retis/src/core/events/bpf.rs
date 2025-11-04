@@ -218,8 +218,8 @@ impl BpfEventsFactory {
     }
 
     fn start_log_handler(&mut self) -> Result<()> {
-        let time_format = self.time_format;
-        let monotonic_offset = self.monotonic_offset;
+        let time_format = self.time_format.clone();
+        let monotonic_offset = self.monotonic_offset.clone();
         // Closure to handle the log events coming from the BPF part.
         let process_log = move |data: &[u8]| -> i32 {
             if data.len() != mem::size_of::<retis_log_event>() {
@@ -250,7 +250,7 @@ impl BpfEventsFactory {
                     log!(
                         log_level,
                         "[eBPF] {} {msg}",
-                        format_date_time(time_format, log_event.ts, monotonic_offset)
+                        format_date_time(&time_format, log_event.ts, monotonic_offset.as_ref())
                     );
                 }
                 Err(e) => error!("Unable to convert eBPF log string: {e}"),

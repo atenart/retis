@@ -8,7 +8,7 @@ use log::warn;
 use crate::helpers::time::TimeSpec;
 
 /// Controls how the time should be displayed in the events.
-#[derive(Debug, Default, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub enum TimeFormat {
     #[default]
     MonotonicTimestamp,
@@ -16,7 +16,7 @@ pub enum TimeFormat {
 }
 
 /// Controls how an event is formatted.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone)]
 pub struct DisplayFormat {
     /// Can the formatting logic use more than a single line?
     pub multiline: bool,

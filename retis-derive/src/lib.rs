@@ -1,5 +1,5 @@
 use quote::quote;
-use syn::{parse_macro_input, Fields, Ident, Item, ItemStruct};
+use syn::{parse_macro_input, parse_quote, Fields, Ident, Item, ItemStruct};
 
 #[proc_macro_attribute]
 pub fn event_section(
@@ -69,7 +69,7 @@ pub fn event_type(
     _args: proc_macro::TokenStream,
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    let input: Item = parse_macro_input!(item);
+    let mut input: Item = parse_macro_input!(item);
     let props = item_get_props(&input);
     let mut pyclass_args = vec![quote!(from_py_object)];
     let mut derives = vec![
@@ -91,6 +91,17 @@ pub fn event_type(
         pyclass_args.push(quote!(get_all));
     }
     let ident = &props.ident;
+
+    // Named fields can have compaitiblity breaking changes. Handle those by
+    // adding a "hidden" compatiblity field to hold the changes.
+    if let Item::Struct(ref mut item) = input {
+        if let Fields::Named(ref mut fields) = item.fields {
+            fields.named.push(parse_quote! {
+                #[serde(skip)]
+                pub(crate) __compat: std::collections::HashMap<String, crate::compat::CompatValue>
+            });
+        }
+    }
 
     let output = quote! {
         #[cfg_attr(feature = "python", pyo3::pyclass(#(#pyclass_args),*))]

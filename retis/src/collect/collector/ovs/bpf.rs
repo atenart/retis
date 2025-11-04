@@ -307,7 +307,7 @@ impl OvsEventFactory {
 
         if flow != 0 {
             if let Some(sender) = &self.ufid_sender {
-                match sender.try_send(flow_info::EnrichRequest::new(ufid, flow, sf_acts)) {
+                match sender.try_send(flow_info::EnrichRequest::new(ufid.clone(), flow, sf_acts)) {
                     Err(mpsc::TrySendError::Full(_)) => {
                         warn!("Flow enrichment channel full, dropping enrichment request");
                     }

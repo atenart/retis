@@ -8,7 +8,7 @@ use crate::{event_type, TimeFormat};
 
 /// Timespec. Representation of `struct timespec` to hold time values.
 #[event_type]
-#[derive(Copy, Default)]
+#[derive(Default)]
 pub struct TimeSpec {
     sec: i64,
     nsec: i64,
@@ -82,15 +82,15 @@ impl From<TimeSpec> for i64 {
 }
 
 pub fn format_date_time(
-    format: TimeFormat,
+    format: &TimeFormat,
     timestamp: u64,
-    monotonic_offset: Option<TimeSpec>,
+    monotonic_offset: Option<&TimeSpec>,
 ) -> String {
     match format {
         TimeFormat::MonotonicTimestamp => timestamp.to_string(),
         TimeFormat::UtcDate => match monotonic_offset {
             Some(offset) => {
-                let timestamp = TimeSpec::new(0, timestamp as i64) + offset;
+                let timestamp = TimeSpec::new(0, timestamp as i64) + offset.clone();
                 let time: DateTime<Utc> = timestamp.into();
                 format!("{}", time.format("%F %T.%6f"))
             }
@@ -143,11 +143,11 @@ mod tests {
     fn timespec_add() {
         let ts = TimeSpec::new(42, 100001);
 
-        let tmp = ts + TimeSpec::new(1, 30);
+        let tmp = ts.clone() + TimeSpec::new(1, 30);
         assert_eq!(tmp.sec(), 43);
         assert_eq!(tmp.nsec(), 100031);
 
-        let tmp = ts + TimeSpec::new(0, TimeSpec::NSECS_IN_SEC - 1);
+        let tmp = ts.clone() + TimeSpec::new(0, TimeSpec::NSECS_IN_SEC - 1);
         assert_eq!(tmp.sec(), 43);
         assert_eq!(tmp.nsec(), 100000);
     }
@@ -156,15 +156,15 @@ mod tests {
     fn timespec_sub() {
         let ts = TimeSpec::new(42, 100001);
 
-        let tmp = ts - TimeSpec::new(1, 30);
+        let tmp = ts.clone() - TimeSpec::new(1, 30);
         assert_eq!(tmp.sec(), 41);
         assert_eq!(tmp.nsec(), 99971);
 
-        let tmp = ts - TimeSpec::new(0, 100002);
+        let tmp = ts.clone() - TimeSpec::new(0, 100002);
         assert_eq!(tmp.sec(), 41);
         assert_eq!(tmp.nsec(), TimeSpec::NSECS_IN_SEC - 1);
 
-        let tmp = ts - TimeSpec::new(42, 100002);
+        let tmp = ts.clone() - TimeSpec::new(42, 100002);
         assert_eq!(tmp.sec(), -1);
         assert_eq!(tmp.nsec(), TimeSpec::NSECS_IN_SEC - 1);
     }

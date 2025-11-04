@@ -93,7 +93,7 @@ fn fmt_upcall_cmd(cmd: u8) -> &'static str {
 
 /// Upcall start.
 #[event_type]
-#[derive(Copy, Default, PartialEq)]
+#[derive(Default, PartialEq)]
 pub struct UpcallEvent {
     /// Command. Holds OVS_PACKET_CMD:
     ///   OVS_PACKET_CMD_UNSPEC   = 0
@@ -177,7 +177,7 @@ impl LookupEvent {
     /// Return a FlowId that represents a unique flow fingerprint.
     pub fn flow_id(&self) -> FlowId {
         FlowId {
-            ufid: self.ufid,
+            ufid: self.ufid.clone(),
             flow: self.flow,
             sf_acts: self.sf_acts,
         }
@@ -186,7 +186,7 @@ impl LookupEvent {
 
 /// Upcall enqueue.
 #[event_type]
-#[derive(Copy, Default, PartialEq)]
+#[derive(Default, PartialEq)]
 pub struct UpcallEnqueueEvent {
     /// Return code. Any value different from zero indicates the upcall enqueue
     /// failed probably indicating a packet drop.
@@ -219,7 +219,7 @@ impl EventFmt for UpcallEnqueueEvent {
 
 /// Upcall return.
 #[event_type]
-#[derive(Copy, Default, PartialEq)]
+#[derive(Default, PartialEq)]
 pub struct UpcallReturnEvent {
     /// Upcall timestamp.
     pub upcall_ts: u64,
@@ -241,7 +241,7 @@ impl EventFmt for UpcallReturnEvent {
 
 /// Flow Operation.
 #[event_type]
-#[derive(Copy, Default, PartialEq)]
+#[derive(Default, PartialEq)]
 #[repr(C)]
 pub struct OperationEvent {
     /// Type. "put" or "exec"
@@ -304,7 +304,7 @@ impl EventFmt for OperationEvent {
 
 /// Upcall received.
 #[event_type]
-#[derive(Copy, Default, PartialEq)]
+#[derive(Default, PartialEq)]
 pub struct RecvUpcallEvent {
     /// Type.
     pub r#type: u32,
@@ -523,7 +523,7 @@ pub enum OvsAction {
 
 /// Output action.
 #[event_type]
-#[derive(Copy, Default, PartialEq)]
+#[derive(Default, PartialEq)]
 pub struct OvsActionOutput {
     /// Port.
     pub port: u32,
@@ -531,7 +531,7 @@ pub struct OvsActionOutput {
 
 /// Recirc action.
 #[event_type]
-#[derive(Copy, Default, PartialEq)]
+#[derive(Default, PartialEq)]
 pub struct OvsActionRecirc {
     /// Recirculation ID.
     pub id: u32,
@@ -617,7 +617,7 @@ pub struct OvsActionCtNat {
 }
 
 #[event_type]
-#[derive(Copy, Default, PartialEq, Eq, Hash)]
+#[derive(Default, PartialEq, Eq, Hash)]
 pub struct Ufid(pub u32, pub u32, pub u32, pub u32);
 
 #[cfg(feature = "python")]
@@ -724,7 +724,7 @@ impl OvsFlowInfoEvent {
     /// Return a FlowId that represents a unique flow fingerprint.
     pub fn flow_id(&self) -> FlowId {
         FlowId {
-            ufid: self.ufid,
+            ufid: self.ufid.clone(),
             flow: self.flow,
             sf_acts: self.sf_acts,
         }

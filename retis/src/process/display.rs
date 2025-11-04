@@ -95,7 +95,7 @@ impl ItemFormatter {
         item.iter().for_each(|e| {
             if let Some(startup) = &e.startup {
                 if let EventFormat::Text(ref mut format) = *self.format.write().unwrap() {
-                    format.monotonic_offset = Some(startup.clock_monotonic_offset);
+                    format.monotonic_offset = Some(startup.clock_monotonic_offset.clone());
                 }
             }
         });

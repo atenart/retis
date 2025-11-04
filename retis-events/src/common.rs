@@ -89,7 +89,11 @@ impl EventFmt for CommonEvent {
         write!(
             f,
             "{}",
-            format_date_time(format.time_format, self.timestamp, format.monotonic_offset)
+            format_date_time(
+                &format.time_format,
+                self.timestamp,
+                format.monotonic_offset.as_ref()
+            )
         )?;
 
         if let Some(smp_id) = self.smp_id {

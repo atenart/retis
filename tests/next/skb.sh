@@ -7,7 +7,7 @@ skb_sanity() {
 	two_ns
 
 	$retis collect -o -c skb,dev,ns -f icmp -p ip_rcv \
-		--cmd 'ip netns exec ns0 ping -c1 10.0.42.2; sleep 1'
+		--cmd 'ip netns exec ns0 ping -c1 10.0.42.2'
 
 	[ $(wc -l < retis.data) == 3 ]
 	cat >test.py <<EOF
@@ -28,7 +28,7 @@ skb_tcp_cc() {
 	ip netns exec ns1 socat TCP-LISTEN:80 /dev/null &
 	$retis collect -o -c skb,dev --skb-sections all \
 		-f 'tcp port 80 or arp' -p net:netif_rx \
-		--cmd 'ip netns exec ns0 socat -T1 STDIN TCP:10.0.42.2:80; sleep 1'
+		--cmd 'ip netns exec ns0 socat -T1 STDIN TCP:10.0.42.2:80'
 
 	cat >test.py <<EOF
 from helpers import assert_events_present
@@ -298,7 +298,7 @@ skb_vlan() {
 	ip netns exec ns1 socat TCP-LISTEN:80 /dev/null &
 	$retis collect -o -c skb,dev --skb-sections all \
 		-f 'tcp port 80 or arp' -p net:net_dev_start_xmit \
-		--cmd 'ip netns exec ns0 socat -T1 STDIN TCP:10.0.43.2:80; sleep 1'
+		--cmd 'ip netns exec ns0 socat -T1 STDIN TCP:10.0.43.2:80'
 
 	# FIXME: add support for packets coming back.
 	cat >test.py <<EOF

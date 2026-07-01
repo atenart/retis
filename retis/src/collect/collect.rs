@@ -687,6 +687,12 @@ impl Collectors {
                     }
                 }
 
+                // Stopping too early can lead to Retis missing events, e.g. TCP
+                // FIN packets for a connection initialized by the command.
+                // While really late packets won't be captured, we can sleep a
+                // little to allow for most to be seen.
+                thread::sleep(Duration::from_millis(500));
+
                 run.terminate();
             })?);
         }

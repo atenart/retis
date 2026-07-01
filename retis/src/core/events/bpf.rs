@@ -163,6 +163,8 @@ impl BpfEventsFactory {
         // Start an event polling thread.
         let thread = thread::Builder::new().name(format!("retis-ringbuf-{name}"));
         Ok(thread.spawn(move || {
+            // Gate on Running here as poll would only return if not processing
+            // an event for timeout time.
             while run.running() {
                 if let Err(e) = rb.poll(Duration::from_millis(CALL_TIMEOUT_MS)) {
                     match e.kind() {
@@ -191,15 +193,6 @@ impl BpfEventsFactory {
         // part.
         let run = self.run.clone();
         let process_event = move |data: &[u8]| -> i32 {
-            // If a termination signal got received, return (EINTR)
-            // from the callback in order to trigger the event thread
-            // termination. This is useful in the case we're
-            // processing a huge number of buffers and rb.poll() never
-            // times out.
-            if !run.running() {
-                return -4;
-            }
-
             // Get the full size of the event to avoid sending padding bytes in
             // the channel.
             let size =
@@ -225,7 +218,6 @@ impl BpfEventsFactory {
     }
 
     fn start_log_handler(&mut self) -> Result<()> {
-        let run = self.run.clone();
         let time_format = self.time_format;
         let monotonic_offset = self.monotonic_offset;
         // Closure to handle the log events coming from the BPF part.
@@ -233,14 +225,6 @@ impl BpfEventsFactory {
             if data.len() != mem::size_of::<retis_log_event>() {
                 error!("Unexpected log event size");
                 return 0;
-            }
-            // If a termination signal got received, return (EINTR)
-            // from the callback in order to trigger the event thread
-            // termination. This is useful in the case we're
-            // processing a huge number of buffers and rb.poll() never
-            // times out.
-            if !run.running() {
-                return -4;
             }
 
             let mut log_event = retis_log_event::default();

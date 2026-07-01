@@ -625,9 +625,10 @@ impl Collectors {
 
             let thread = thread::Builder::new().name(format!("retis-event-{i}"));
             thread.spawn(move || {
-                while run.running() {
+                loop {
                     let raw = match rxc.recv_timeout(Duration::from_millis(CALL_TIMEOUT_MS)) {
                         Ok(raw) => raw,
+                        _ if !run.running() => break,
                         _ => continue,
                     };
 
@@ -695,15 +696,18 @@ impl Collectors {
                 // FIN packets for a connection initialized by the command.
                 // While really late packets won't be captured, we can sleep a
                 // little to allow for most to be seen.
-                thread::sleep(Duration::from_millis(500));
+                thread::sleep(Duration::from_millis(250));
 
                 run.terminate();
             })?;
         }
 
         let stop_count = collect.stop_after.unwrap_or_default();
+        let mut stopped = false;
 
-        while self.run.running() {
+        loop {
+            let ecount_start = ecount;
+
             // First always try to dequeue all Retis events. This is not a
             // blocking call.
             if let Some(event) = events_factory.next_event() {
@@ -749,9 +753,17 @@ impl Collectors {
                 mgr.attach_probes()?;
             }
 
-            if stop_count > 0 && ecount - icount >= stop_count {
-                self.run.terminate();
-                info!("Reached stop count ({stop_count}), terminating...");
+            if !self.run.running() {
+                if !stopped {
+                    self.probes.runtime_mut()?.stop()?;
+                    stopped = true;
+                }
+
+                // Not running anymore and no event processed, bail out. Also
+                // when using an event count limit.
+                if ecount == ecount_start || stop_count > 0 {
+                    break;
+                }
             }
         }
 

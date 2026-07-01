@@ -136,6 +136,8 @@ impl ProbeManager {
         #[cfg_attr(test, allow(unused_mut))]
         let mut runtime = ProbeRuntimeManager {
             #[cfg(not(test))]
+            global_config_map: builder.global_config_map,
+            #[cfg(not(test))]
             config_map: builder.config_map,
             #[cfg(not(test))]
             counters_map: builder.counters_map,
@@ -173,7 +175,7 @@ impl ProbeManager {
             // inconsistencies.
             let config = GlobalConfig { enabled: 1 };
             let config = unsafe { plain::as_bytes(&config) };
-            builder
+            runtime
                 .global_config_map
                 .update(&[0], config, libbpf_rs::MapFlags::ANY)?;
         }
@@ -376,6 +378,8 @@ impl ProbeBuilderManager {
 
 /// ProbeRuntimeManager holds data of the runtime state of ProbeManager.
 pub(crate) struct ProbeRuntimeManager {
+    #[cfg(not(test))]
+    global_config_map: libbpf_rs::MapHandle,
     /// Dynamic probes requires a map that provides extra information at runtime. This is that map.
     #[cfg(not(test))]
     config_map: libbpf_rs::MapHandle,
@@ -395,6 +399,15 @@ pub(crate) struct ProbeRuntimeManager {
 }
 
 impl ProbeRuntimeManager {
+    pub(crate) fn stop(&mut self) -> Result<()> {
+        // FIXME: read config & update enabled field.
+        let config = GlobalConfig { enabled: 0 };
+        let config = unsafe { plain::as_bytes(&config) };
+        self.global_config_map
+            .update(&[0], config, libbpf_rs::MapFlags::ANY)?;
+        Ok(())
+    }
+
     /// Internal function adding a probe using a type-specific builder.
     #[cfg(not(test))]
     fn add_probe(

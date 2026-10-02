@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use log::warn;
 
-use crate::bindings::skb_drop_hook_uapi::skb_drop_event;
+use crate::{bindings::skb_drop_hook_uapi::skb_drop_event, core::inspect::inspector};
 
 // Keep in sync with definition in include/net/dropreason-core.h (Linux
 // sources).
@@ -74,6 +74,15 @@ impl RawEventSectionFactory for SkbDropEventFactory {
         let drop = SkbDropEvent {
             subsys,
             drop_reason,
+            location: (raw.location != 0).then_some(
+                match inspector()?
+                    .kernel
+                    .get_name_offt_from_addr_near(raw.location)
+                {
+                    Ok((symbol, offset)) => format!("{symbol}+{offset:#x}"),
+                    Err(_) => format!("{:#x}", raw.location),
+                },
+            ),
         };
 
         event.skb_drop = Some(drop);

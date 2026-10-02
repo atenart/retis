@@ -108,10 +108,6 @@ impl EventFmt for Event {
             write!(f, " ")?;
             skb_tracking.event_fmt(f, format)?;
         }
-        if let Some(skb_drop) = &self.skb_drop {
-            write!(f, " ")?;
-            skb_drop.event_fmt(f, format)?;
-        }
 
         // Separator between each following sections.
         let sep = if format.multiline { '\n' } else { ' ' };
@@ -133,6 +129,12 @@ impl EventFmt for Event {
         if let Some(packet) = &self.packet {
             write!(f, "{sep}")?;
             packet.event_fmt(f, format)?;
+        }
+
+        // Make the drop info available first.
+        if let Some(skb_drop) = &self.skb_drop {
+            write!(f, "{sep}")?;
+            skb_drop.event_fmt(f, format)?;
         }
 
         // Special case the netns & dev sections, to make the output more

@@ -112,16 +112,6 @@ impl EventFmt for Event {
         // Separator between each following sections.
         let sep = if format.multiline { '\n' } else { ' ' };
 
-        // If we have a stack trace, show it.
-        if let Some(kernel) = &self.kernel {
-            if let Some(stack) = &kernel.stack_trace {
-                f.conf.inc_level(4);
-                write!(f, "{sep}")?;
-                stack.event_fmt(f, format)?;
-                f.conf.reset_level();
-            }
-        }
-
         f.conf.inc_level(2);
 
         // Format the packet before the other fields, as this is the main focus
@@ -166,6 +156,16 @@ impl EventFmt for Event {
             }
             _ => Ok(()),
         })?;
+
+        // If we have a stack trace, show it.
+        if let Some(kernel) = &self.kernel {
+            if let Some(stack) = &kernel.stack_trace {
+                f.conf.inc_level(2);
+                write!(f, "{sep}")?;
+                stack.event_fmt(f, format)?;
+                f.conf.reset_level();
+            }
+        }
 
         f.conf.reset_level();
         Ok(())

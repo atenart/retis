@@ -11,13 +11,24 @@ pub struct SkbDropEvent {
     /// Reason. Only reported from specific functions.
     /// See `enum skb_drop_reason` in the kernel.
     pub drop_reason: String,
+    /// Location of the drop, if any.
+    pub location: Option<String>,
 }
 
 impl EventFmt for SkbDropEvent {
     fn event_fmt(&self, f: &mut Formatter, _: &DisplayFormat) -> fmt::Result {
-        match &self.subsys {
-            None => write!(f, "drop (reason {})", self.drop_reason),
-            Some(name) => write!(f, "drop (reason {name}/{})", self.drop_reason),
+        write!(f, "drop (reason ")?;
+
+        if let Some(name) = &self.subsys {
+            write!(f, "{name}/")?;
         }
+
+        write!(f, "{}", self.drop_reason)?;
+
+        if let Some(location) = &self.location {
+            write!(f, " @{location}")?;
+        }
+
+        write!(f, ")")
     }
 }

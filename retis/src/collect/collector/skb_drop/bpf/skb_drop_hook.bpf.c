@@ -6,6 +6,7 @@
 
 struct skb_drop_event {
 	s32 drop_reason;
+	u64 location;
 } __binding;
 
 DEFINE_HOOK(
@@ -26,6 +27,8 @@ DEFINE_HOOK(
 
 	e->drop_reason = bpf_core_type_exists(enum skb_drop_reason) ?
 		retis_get_skb_drop_reason(ctx) : -1;
+	e->location = is_attached_to(&ctx->ksym, "__tracepoint_kfree_skb", 22) ?
+		e->location = retis_get_param(ctx, 1, u64) : 0;
 
 	return 0;
 )

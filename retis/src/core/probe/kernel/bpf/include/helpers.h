@@ -13,6 +13,44 @@
 #define BUILD_BUG_ON(cond)
 #endif
 
+/* The following helper allows to compare the current attached function to its
+ * definition. The check is done once and the cached.
+ *
+ * Examples of valid definitions:
+ * - kprobe: "skb_free_head"
+ * - tracepoint: "__tracepoint_kfree_skb"
+ * - kprobe in a module: "__nft_trace_packet [nf_tables]"
+ */
+static __always_inline bool is_attached_to(u64 *ksym, char* def, u32 sz)
+{
+	static bool res = false, ran = false;
+	char buf[64];
+	int i;
+
+	if (ran)
+		return res;
+
+	/* Bound the symbol def size */
+	if (sz > 64) {
+		log_error("Symbol defintion is truncated");
+		sz = 64;
+	}
+
+	/* Get the kernel symbol definition and compare it */
+	if (sz && sz + 1 == bpf_snprintf(buf, sizeof(buf), "%ps", ksym, sizeof(*ksym))) {
+		res = true;
+		for (i = 0; i < sz; i++) {
+			if (def[i] != buf[i]) {
+				res = false;
+				break;
+			}
+		}
+	}
+
+	ran = true;
+	return res;
+}
+
 enum bpf_attach_type___x { BPF_TRACE_KPROBE_MULTI };
 
 enum bpf_func_id___x { BPF_FUNC_get_func_ip___5_15_0 = 42 };

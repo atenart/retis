@@ -9,7 +9,7 @@ DEFINE_HOOK(
 	struct sk_buff *skb;
 	u64 sb = ctx->stack_base;
 
-	skb = retis_get_sk_buff(ctx);
+	skb = retis_get_arg(ctx, struct sk_buff *);
 	if (!skb)
 		return 0;
 

@@ -15,7 +15,7 @@ DEFINE_HOOK(
 	struct tracking_info *ti;
 	struct sk_buff *skb;
 
-	skb = retis_get_sk_buff(ctx);
+	skb = retis_get_arg(ctx, struct sk_buff *);
 	if (skb)
 		ti = skb_tracking_info_by_skb(skb);
 	else

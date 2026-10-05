@@ -24,7 +24,7 @@ struct kernel_event {
 
 /* Per-probe configuration. */
 struct retis_probe_config {
-	struct retis_probe_offsets offsets;
+	u32 args[REGS_SZ];
 	u8 stack_trace;
 	u8 ftrace;
 } __binding;
@@ -73,7 +73,7 @@ struct {
 		if (!ctx || !event)						\
 			return 0;						\
 		if (!is_raw) {							\
-			struct sk_buff *skb = retis_get_sk_buff(ctx);		\
+			struct sk_buff *skb = retis_get_arg(ctx, struct sk_buff *); \
 			barrier_var(ctx);					\
 			/* RETIS_F_WINDOW_PASS guarantees the skb is tracked */	\
 			if ((skb && !RETIS_TRACKABLE(ctx)) &&			\
@@ -161,12 +161,12 @@ static __always_inline int extend_ctx_nft(struct retis_context *ctx)
 	const struct nft_pktinfo *pkt;
 	struct nft_traceinfo *info;
 
-	if (retis_arg_valid(ctx, sk_buff) ||
+	if (retis_arg_valid(ctx, struct sk_buff *) ||
 	    !bpf_core_type_exists(struct nft_traceinfo) ||
 	    !bpf_core_type_exists(struct nft_pktinfo))
 		return 0;
 
-	info = retis_get_nft_traceinfo(ctx);
+	info = retis_get_arg(ctx, struct nft_traceinfo *);
 	if (!info)
 		return 0;
 
@@ -174,10 +174,11 @@ static __always_inline int extend_ctx_nft(struct retis_context *ctx)
 	if (bpf_core_field_exists(info_63->pkt))
 		pkt = BPF_CORE_READ(info_63, pkt);
 	else
-		pkt = retis_get_nft_pktinfo(ctx);
+		pkt = retis_get_arg(ctx, struct nft_pktinfo *);
 
 	if (pkt)
-		retis_set_ext_sk_buff(ctx, BPF_CORE_READ(pkt, skb));
+		// FIXME
+		retis_set_ext_arg_ptr(ctx, struct sk_buff, BPF_CORE_READ(pkt, skb));
 
 	return 0;
 }
@@ -311,13 +312,13 @@ static __always_inline int chain(struct retis_context *ctx)
 	cfg = bpf_map_lookup_elem(&config_map, &ctx->ksym);
 	if (!cfg)
 		return 0;
-	__builtin_memcpy(&ctx->offsets, &cfg->offsets, sizeof(cfg->offsets));
+	__builtin_memcpy(&ctx->args, &cfg->args, sizeof(cfg->args));
 
 	ret = extend_ctx(ctx);
 	if (ret)
 		log_warning("ctx extension failed: %d", ret);
 
-	skb = retis_get_sk_buff(ctx);
+	skb = retis_get_arg(ctx, struct sk_buff *);
 	if (skb) {
 		ctx->flags = filter(skb);
 

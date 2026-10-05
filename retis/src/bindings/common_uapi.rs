@@ -3,20 +3,9 @@
 pub type __u64 = ::std::os::raw::c_ulonglong;
 pub type u64_ = __u64;
 pub type __u8 = ::std::os::raw::c_uchar;
-pub type __s8 = ::std::os::raw::c_schar;
-pub type s8 = __s8;
+pub type __u32 = ::std::os::raw::c_uint;
+pub type u32_ = __u32;
 pub type u8_ = __u8;
-#[doc = " Per-probe parameter offsets. A value of -1 means the argument isn't\n available. Please try to reuse the targeted object names.\n\n Skip Default trait implementation:\n\n <div rustbindgen nodefault></div>"]
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct retis_probe_offsets {
-    pub sk_buff: s8,
-    pub skb_drop_reason: s8,
-    pub net_device: s8,
-    pub net: s8,
-    pub nft_pktinfo: s8,
-    pub nft_traceinfo: s8,
-}
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct kernel_event {
@@ -27,7 +16,7 @@ pub struct kernel_event {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct retis_probe_config {
-    pub offsets: retis_probe_offsets,
+    pub args: [u32_; 13usize],
     pub stack_trace: u8_,
     pub ftrace: u8_,
 }

@@ -12,34 +12,19 @@ enum kernel_probe_type {
 	KERNEL_PROBE_TRACEPOINT = 2,
 };
 
-/**
- * Per-probe parameter offsets. A value of -1 means the argument isn't
- * available. Please try to reuse the targeted object names.
- *
- * Skip Default trait implementation:
- *
- * <div rustbindgen nodefault></div>
- */
-struct retis_probe_offsets {
-	s8 sk_buff;
-	s8 skb_drop_reason;
-	s8 net_device;
-	s8 net;	 /* netns */
-	s8 nft_pktinfo;
-	s8 nft_traceinfo;
-};
-
 enum {
 	REG_MAX = 11,	/* Fexit max, let's use this */
 
 	/* Extended registers are used to store dynamically extracted
 	 * arguments.
 	 */
-	EXT_REG_SKB,	/* Extended register for struct sk_buff.*/
+	EXT_REG,	/* Extended register */
 
 	__EXT_REG_END,
 	EXT_REG_MAX = __EXT_REG_END - 1,
 };
+
+#define REGS_SZ	EXT_REG_MAX + 1
 
 /* Common representation of the register values provided to the probes, as this
  * is done in a per-probe type fashion.
@@ -48,7 +33,7 @@ enum {
  * num: number of valid registers.
  */
 struct retis_regs {
-	u64 reg[EXT_REG_MAX + 1];
+	u64 reg[REGS_SZ];
 	u64 ret;
 	u32 num; /* Number of non-extended registers in use. */
 };
@@ -73,7 +58,7 @@ struct retis_context {
 	enum kernel_probe_type probe_type;
 	u64 timestamp;
 	u64 ksym;
-	struct retis_probe_offsets offsets;
+	u32 args[REGS_SZ];
 	struct retis_regs regs;
 	/* Pointer to the original ctx. Needed for helper calls. */
 	void *orig_ctx;
@@ -83,6 +68,8 @@ struct retis_context {
 	 */
 	u32 flags;
 };
+
+BINDING_DEF(ARG_PTR, BIT(31))
 
 /* Defines the bit position for each filter */
 enum {
@@ -100,49 +87,53 @@ enum {
 
 #define RETIS_ALL_FILTERS	(RETIS_F_PACKET_PASS | RETIS_F_META_PASS)
 
-/* Helper to retrieve a function parameter argument using the common context */
-#define retis_get_param(ctx, offset, type)			\
-	(type)(((offset) >= 0 && (offset) <= EXT_REG_MAX &&	\
-	((offset) > REG_MAX || (offset) < ctx->regs.num)) ?	\
-       ctx->regs.reg[offset] : 0)
-
-/* Check if a given offset is valid. */
-#define retis_offset_valid(offset)	\
-	(offset >= 0)
-/* Check if a given argument is valid */
-#define retis_arg_valid(ctx, name)	\
-	retis_offset_valid(ctx->offsets.name)
-
-/* Argument specific helpers for use in generic hooks (and easier use in
- * targeted ones.
- */
-#define RETIS_GET(ctx, name, type)		\
-	(retis_arg_valid(ctx, name) ?	\
-	 retis_get_param(ctx, ctx->offsets.name, type) : 0)
-/* Same as RETIS_GET() but local to hooks only. */
-#define RETIS_HOOK_GET(ctx, offsets, name, type)	\
-	(retis_offset_valid(offsets.name) ?	\
-	 retis_get_param(ctx, offsets.name, type) : 0)
-
-#define retis_get_sk_buff(ctx)	\
-	RETIS_GET(ctx, sk_buff, struct sk_buff *)
-#define retis_get_skb_drop_reason(ctx)	\
-	RETIS_GET(ctx, skb_drop_reason, enum skb_drop_reason)
-#define retis_get_net_device(ctx)	\
-	RETIS_GET(ctx, net_device, struct net_device *)
-#define retis_get_net(ctx)		\
-	RETIS_GET(ctx, net, struct net *)
-#define retis_get_nft_pktinfo(ctx)	\
-	RETIS_GET(ctx, nft_pktinfo, struct nft_pktinfo *)
-#define retis_get_nft_traceinfo(ctx)	\
-	RETIS_GET(ctx, nft_traceinfo, struct nft_traceinfo *)
-
-/* Extended register helpers */
-static __always_inline void retis_set_ext_sk_buff(struct retis_context *ctx,
-						  struct sk_buff *skb)
+/* Retrieve a probe argument offset based on its BTF id */
+static __always_inline int __retis_arg_offset(struct retis_context *ctx,
+					      u32 kind, u32 flags)
 {
-	ctx->regs.reg[EXT_REG_SKB] = (u64)(skb);
-	ctx->offsets.sk_buff = EXT_REG_SKB;
+	if (kind == 0)
+		return -1;
+
+	for (int i = 0; i < MIN(ctx->regs.num, REGS_SZ); i++) {
+		if ((ctx->args[i] & ~flags) == kind)
+			return i;
+	}
+
+	return -1;
 }
+#define base(type) typeof(*__builtin_choose_expr(						\
+        __builtin_classify_type((typeof(type)){0}) == __builtin_classify_type((void *)0),	\
+        (typeof(type)){0}, &(typeof(type)){0}))
+#define retis_arg_offset(ctx, type)								\
+	(bpf_core_type_exists(base(type)) ?							\
+	 __retis_arg_offset(ctx, bpf_core_type_id_kernel(base(type)),				\
+		__builtin_classify_type(*(type *)0) == __builtin_classify_type((void *)0) ?	\
+		ARG_PTR : 0) : -1)
+
+/* Check if an argument is available based on its BTF id */
+#define retis_arg_valid(ctx, type)	\
+	(retis_arg_offset(ctx, type) >= 0)
+
+/* Get a probe argument based on its offset in the probe arguments list. */
+#define retis_get_arg_at(ctx, offset, type)	\
+	(type)((offset) >= 0 && (offset) <= REG_MAX && (offset) < ctx->regs.num ? \
+	ctx->regs.reg[offset] : 0)
+
+/* Get a probe argument based on its BTF id */
+#define retis_get_arg(ctx, type)	\
+	retis_get_arg_at(ctx, retis_arg_offset(ctx, type), type)
+
+/* Add an argument in the extra context space */
+static __always_inline void __retis_set_ext_arg(struct retis_context *ctx,
+						u32 kind, u64 arg)
+{
+	ctx->regs.reg[EXT_REG] = arg;
+	ctx->args[EXT_REG] = kind;
+}
+// FIXME
+#define retis_set_ext_arg(ctx, type, arg)	\
+	__retis_set_ext_arg(ctx, bpf_core_type_id_kernel(type), (u64)arg)
+#define retis_set_ext_arg_ptr(ctx, type, arg)	\
+	__retis_set_ext_arg(ctx, bpf_core_type_id_kernel(type) | ARG_PTR, (u64)arg)
 
 #endif /* __CORE_PROBE_KERNEL_BPF_RETIS_CONTEXT__ */

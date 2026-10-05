@@ -6,7 +6,7 @@ DEFINE_HOOK(
 	struct execute_actions_ctx ectx = {};
 	u64 sb = ctx->stack_base;
 
-	ectx.skb = retis_get_sk_buff(ctx);
+	ectx.skb = retis_get_arg(ctx, struct sk_buff *);
 	if (!ectx.skb) {
 		log_error("Invalid skb while ovs is processing the packet");
 		return 0;

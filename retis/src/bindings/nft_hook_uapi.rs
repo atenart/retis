@@ -7,23 +7,12 @@ pub type u64_ = __u64;
 pub type __u8 = ::std::os::raw::c_uchar;
 pub type __u32 = ::std::os::raw::c_uint;
 pub type u32_ = __u32;
-pub type __s8 = ::std::os::raw::c_schar;
-pub type s8 = __s8;
 pub type u8_ = __u8;
 #[doc = " Nft hook configuration.\n\n Skip Default trait implementation:\n\n <div rustbindgen nodefault></div>"]
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct nft_offsets {
-    pub nft_chain: s8,
-    pub nft_rule: s8,
-    pub nft_verdict: s8,
-    pub nft_type: s8,
-}
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
 pub struct nft_config {
     pub verdicts: u64_,
-    pub offsets: nft_offsets,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]

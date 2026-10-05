@@ -253,7 +253,7 @@ DEFINE_HOOK(
 	u8 protonum;
 	u16 l3num;
 
-	skb = retis_get_sk_buff(ctx);
+	skb = retis_get_arg(ctx, struct sk_buff *);
 	if (!skb)
 		return 0;
 

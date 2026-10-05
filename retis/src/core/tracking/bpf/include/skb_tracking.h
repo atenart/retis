@@ -103,7 +103,7 @@ static __always_inline void track_skb_start(struct retis_context *ctx,
 	u64 new_ref, *ref = NULL;
 	struct sk_buff *skb;
 
-	skb = retis_get_sk_buff(ctx);
+	skb = retis_get_arg(ctx, struct sk_buff *);
 	if (!skb)
 		return;
 
@@ -243,7 +243,7 @@ static __always_inline int track_skb_end(struct retis_context *ctx, bool ftrace)
 	if (!cfg->free)
 		goto clear_ftrace;
 
-	skb = retis_get_sk_buff(ctx);
+	skb = retis_get_arg(ctx, struct sk_buff *);
 	if (!skb)
 		goto clear_ftrace;
 
@@ -253,7 +253,7 @@ static __always_inline int track_skb_end(struct retis_context *ctx, bool ftrace)
 
 	if (cfg->partial_free) {
 		/* See kfree_skb_partial */
-		bool stolen = retis_get_param(ctx, 1, bool);
+		bool stolen = retis_get_arg_at(ctx, 1, bool);
 
 		/* If the head wasn't stolen in a partial free, it will be freed
 		 * later and we'll catch it.

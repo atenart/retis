@@ -3,7 +3,7 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use btf_rs::{
     utils::collection::{BtfCollection, NamedBtf},
-    Backend, Type,
+    Backend, BtfType, Type,
 };
 
 use super::BASE_TEST_DIR;
@@ -46,9 +46,47 @@ impl BtfInfo {
         Ok((proto.parameters.len() - fix) as u32)
     }
 
-    /// Given a function symbol, get all its parameter type names (as String)
-    /// and their offsets.
-    pub(crate) fn get_parameters(&self, symbol: &Symbol) -> Result<Vec<(u32, String)>> {
+    /// Given a function symbol, get all its parameter (type ids, is_pointer).
+    pub(crate) fn get_parameters_type(&self, symbol: &Symbol) -> Result<Vec<(u32, bool)>> {
+        // Events have a void* pointing to the data as their first argument, which
+        // does not end up in their context. We have to skip it. See
+        // include/trace/bpf_probe.h in the __DEFINE_EVENT definition.
+        let start = match symbol {
+            Symbol::Event(_) => 1,
+            _ => 0,
+        };
+
+        let mut params = Vec::new();
+
+        let (btf, mut proto) = self.find_prototype_btf(symbol)?;
+        for param in proto.parameters.drain(start..) {
+            // Parameter have a linked type id. Same below for all unwrap calls,
+            // we know for sure the definition contains a linked type.
+            let mut id = param.get_type_id().unwrap();
+            let mut resolved = btf.resolve_type_by_id(id)?;
+
+            // Traverse the type definition until we get the plain type.
+            let mut is_pointer = false;
+            loop {
+                (id, resolved) = match resolved {
+                    Type::Ptr(t) => {
+                        is_pointer = true;
+                        (t.get_type_id().unwrap(), btf.resolve_chained_type(&t)?)
+                    }
+                    Type::Const(t) => (t.get_type_id().unwrap(), btf.resolve_chained_type(&t)?),
+                    Type::Volatile(t) => (t.get_type_id().unwrap(), btf.resolve_chained_type(&t)?),
+                    _ => break,
+                };
+            }
+
+            params.push((id, is_pointer));
+        }
+
+        Ok(params)
+    }
+
+    /// Given a function symbol, get all its parameter type names (as String).
+    pub(crate) fn get_parameters_name(&self, symbol: &Symbol) -> Result<Vec<String>> {
         let mut params = Vec::new();
 
         // Events have a void* pointing to the data as their first argument, which
@@ -60,8 +98,43 @@ impl BtfInfo {
         };
 
         let (btf, mut proto) = self.find_prototype_btf(symbol)?;
-        for (offset, param) in proto.parameters.drain(start..).enumerate() {
-            params.push((offset as u32, Self::get_param(btf, &param)?));
+        for param in proto.parameters.drain(start..) {
+            let mut resolved = btf.resolve_chained_type(&param)?;
+
+            // First, traverse the type definition until we find the actual type.
+            // Only support valid resolve_chained_type calls and exclude function
+            // pointers, static/global variables and especially typedef as we don't
+            // want to traverse its full definition!
+            let mut is_pointer = false;
+            loop {
+                resolved = match resolved {
+                    Type::Ptr(t) => {
+                        is_pointer = true;
+                        btf.resolve_chained_type(&t)?
+                    }
+                    Type::Const(t) => btf.resolve_chained_type(&t)?,
+                    Type::Volatile(t) => btf.resolve_chained_type(&t)?,
+                    _ => break,
+                };
+            }
+
+            let mut name = match resolved {
+                Type::Int(t) => btf.resolve_name(&t)?,
+                Type::Struct(t) => format!("struct {}", btf.resolve_name(&t)?),
+                Type::Union(t) => format!("union {}", btf.resolve_name(&t)?),
+                Type::Enum(t) => format!("enum {}", btf.resolve_name(&t)?),
+                Type::Typedef(t) => btf.resolve_name(&t)?,
+                Type::Float(t) => btf.resolve_name(&t)?,
+                Type::Enum64(t) => format!("enum {}", btf.resolve_name(&t)?),
+                _ => "unsupported".to_string(),
+            };
+
+            // Set the pointer information C style.
+            if is_pointer {
+                name.push_str(" *");
+            }
+
+            params.push(name);
         }
 
         Ok(params)
@@ -94,51 +167,6 @@ impl BtfInfo {
         }
 
         bail!("Failed to resolve prototype for {symbol}");
-    }
-
-    /// Translate a BTF function parameter into a type name String representation.
-    fn get_param(btf: &NamedBtf, param: &btf_rs::Parameter) -> Result<String> {
-        let mut resolved = btf.resolve_chained_type(param)?;
-        let mut name = String::new();
-
-        // First, traverse the type definition until we find the actual type.
-        // Only support valid resolve_chained_type calls and exclude function
-        // pointers, static/global variables and especially typedef as we don't
-        // want to traverse its full definition!
-        let mut is_pointer = false;
-        loop {
-            resolved = match resolved {
-                Type::Ptr(t) => {
-                    is_pointer = true;
-                    btf.resolve_chained_type(&t)?
-                }
-                Type::Volatile(t) => btf.resolve_chained_type(&t)?,
-                Type::Const(t) => btf.resolve_chained_type(&t)?,
-                // FIXME: arrays are not supported at the moment.
-                Type::Array(_) => return Ok(name),
-                _ => break,
-            }
-        }
-
-        // Then resolve the type name.
-        let type_name = match resolved {
-            Type::Int(t) => btf.resolve_name(&t)?,
-            Type::Struct(t) => format!("struct {}", btf.resolve_name(&t)?),
-            Type::Union(t) => format!("union {}", btf.resolve_name(&t)?),
-            Type::Enum(t) => format!("enum {}", btf.resolve_name(&t)?),
-            Type::Typedef(t) => btf.resolve_name(&t)?,
-            Type::Float(t) => btf.resolve_name(&t)?,
-            Type::Enum64(t) => format!("enum {}", btf.resolve_name(&t)?),
-            _ => return Ok(name),
-        };
-        name.push_str(type_name.as_str());
-
-        // Set the pointer information C style.
-        if is_pointer {
-            name.push_str(" *");
-        }
-
-        Ok(name)
     }
 
     fn get_function_prototype(btf: &NamedBtf, func: &Type) -> Result<btf_rs::FuncProto> {

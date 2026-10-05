@@ -42,7 +42,7 @@ DEFINE_HOOK_RAW(
 	if (!uctx)
 		return 0;
 
-	skb = retis_get_sk_buff(ctx);
+	skb = retis_get_arg(ctx, struct sk_buff *);
 	if (!skb)
 		return 0;
 

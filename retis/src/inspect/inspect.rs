@@ -63,10 +63,8 @@ impl SubCommandParserRunner for Inspect {
 fn inspect_probe(probe: &str, known_types: &[&str]) -> Result<()> {
     // Only display probes compatible with the collectors.
     let filter = |symbol: &Symbol, _: &HashSet<ProbeOption>| -> Result<bool> {
-        let params = symbol.get_parameters()?;
-        Ok(known_types
-            .iter()
-            .any(|t| params.iter().any(|(_, p)| p == t)))
+        let params = symbol.get_parameters_name()?;
+        Ok(known_types.iter().any(|t| params.iter().any(|p| p == t)))
     };
 
     // Get & list probes.

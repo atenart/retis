@@ -11,8 +11,8 @@ DEFINE_HOOK(
 	struct dev_event *e;
 	int ifindex;
 
-	skb = retis_get_sk_buff(ctx);
-	dev = skb ? BPF_CORE_READ(skb, dev) : retis_get_net_device(ctx);
+	skb = retis_get_arg(ctx, struct sk_buff *);
+	dev = skb ? BPF_CORE_READ(skb, dev) : retis_get_arg(ctx, struct net_device *);
 	if (!dev)
 		return 0;
 

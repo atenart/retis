@@ -9,15 +9,6 @@
 #define NFT_NAME_SIZE 128
 #define NFT_MEMSET_CHUNK 256
 
-#define retis_get_nft_chain(ctx, cfg)		\
-	RETIS_HOOK_GET(ctx, cfg->offsets, nft_chain, struct nft_chain *)
-#define retis_get_nft_rule(ctx, cfg)		\
-	RETIS_HOOK_GET(ctx, cfg->offsets, nft_rule, struct nft_rule_dp *)
-#define retis_get_nft_verdict(ctx, cfg)		\
-	RETIS_HOOK_GET(ctx, cfg->offsets, nft_verdict, struct nft_verdict *)
-#define retis_get_nft_type(ctx, cfg)		\
-	RETIS_HOOK_GET(ctx, cfg->offsets, nft_type, enum nft_trace_types)
-
 /**
  * Nft hook configuration.
  *
@@ -25,15 +16,8 @@
  *
  * <div rustbindgen nodefault></div>
  */
-struct nft_offsets {
-	s8 nft_chain;
-	s8 nft_rule;
-	s8 nft_verdict;
-	s8 nft_type;
-};
 struct nft_config {
 	u64 verdicts;
-	struct nft_offsets offsets;
 } __binding;
 
 struct {
@@ -210,12 +194,12 @@ void nft_retrieve_rule(struct retis_context *ctx, struct nft_config *cfg,
 
 	info_63 = (struct nft_traceinfo___6_3_0 *)info;
 	if (bpf_core_field_exists(info_63->rule)) {
-		*chain = retis_get_nft_chain(ctx, cfg);
+		*chain = retis_get_arg(ctx, struct nft_chain *);
 		*rule = BPF_CORE_READ(info_63, rule);
 		return;
 	}
 
-	*rule = retis_get_nft_rule(ctx, cfg);
+	*rule = retis_get_arg(ctx, struct nft_rule_dp *);
 	*chain = nft_get_chain_from_rule(ctx, info, *rule);
 }
 
@@ -229,7 +213,7 @@ const struct nft_verdict *nft_get_verdict(struct retis_context *ctx,
 
 	info_63 = (struct nft_traceinfo___6_3_0 *)info;
 	if (!bpf_core_field_exists(info_63->verdict))
-		verdict = retis_get_nft_verdict(ctx, cfg);
+		verdict = retis_get_arg(ctx, struct nft_verdict *);
 	else
 		verdict = BPF_CORE_READ(info_63, verdict);
 
@@ -250,7 +234,7 @@ DEFINE_HOOK(
 		return 0;
 
 	/* nft_traceinfo pointer must be present. */
-	info = retis_get_nft_traceinfo(ctx);
+	info = retis_get_arg(ctx, struct nft_traceinfo *);
 	if (!info)
 		return 0;
 
@@ -262,7 +246,7 @@ DEFINE_HOOK(
 	verdict = nft_get_verdict(ctx, cfg, info);
 
 	return nft_trace(cfg, event, info, chain, verdict, rule,
-			 retis_get_nft_type(ctx, cfg));
+			 retis_get_arg(ctx, enum nft_trace_types));
 )
 
 char __license[] SEC("license") = "GPL";

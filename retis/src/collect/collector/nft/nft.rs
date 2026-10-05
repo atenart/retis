@@ -191,25 +191,8 @@ impl Collector for NftCollector {
         let config_map = Self::config_map()?;
         let sym = Symbol::from_name("__nft_trace_packet")?;
 
-        let mut cfg = nft_config {
-            verdicts,
-            ..Default::default()
-        };
-        if let Some(offset) = sym.parameter_offset("struct nft_chain *")? {
-            cfg.offsets.nft_chain = offset as i8;
-        }
-        if let Some(offset) = sym.parameter_offset("struct nft_rule_dp *")? {
-            cfg.offsets.nft_rule = offset as i8;
-        }
-        if let Some(offset) = sym.parameter_offset("struct nft_verdict *")? {
-            cfg.offsets.nft_verdict = offset as i8;
-        }
-        if let Some(offset) = sym.parameter_offset("enum nft_trace_types")? {
-            cfg.offsets.nft_type = offset as i8;
-        }
-
+        let cfg = nft_config { verdicts };
         let cfg = unsafe { plain::as_bytes(&cfg) };
-
         let key = 0_u32.to_ne_bytes();
         config_map.update(&key, cfg, libbpf_rs::MapFlags::empty())?;
 

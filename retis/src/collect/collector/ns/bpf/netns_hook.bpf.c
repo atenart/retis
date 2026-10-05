@@ -11,13 +11,13 @@ struct netns_event {
 
 static __always_inline struct net *get_net_from_parms(struct retis_context *ctx)
 {
-	struct net *net = retis_get_net(ctx);
+	struct net *net = retis_get_arg(ctx, struct net *);
 	struct net_device *dev;
 
 	if (net)
 		return net;
 
-	dev = retis_get_net_device(ctx);
+	dev = retis_get_arg(ctx, struct net_device *);
 	if (dev)
 		return BPF_CORE_READ(dev, nd_net.net);
 
@@ -48,7 +48,7 @@ DEFINE_HOOK(
 	u64 cookie = 0;
 	u32 inum;
 
-	skb = retis_get_sk_buff(ctx);
+	skb = retis_get_arg(ctx, struct sk_buff *);
 	net = skb ? get_net_from_skb(skb) : get_net_from_parms(ctx);
 	if (!net)
 		return 0;

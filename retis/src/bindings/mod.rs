@@ -9,21 +9,7 @@
     non_snake_case
 )]
 pub(crate) mod common_uapi;
-use common_uapi::{retis_probe_config, retis_probe_offsets};
-
-impl Default for retis_probe_offsets {
-    fn default() -> retis_probe_offsets {
-        // -1 means the argument isn't available.
-        retis_probe_offsets {
-            sk_buff: -1,
-            skb_drop_reason: -1,
-            net_device: -1,
-            net: -1,
-            nft_pktinfo: -1,
-            nft_traceinfo: -1,
-        }
-    }
-}
+use common_uapi::retis_probe_config;
 
 unsafe impl plain::Plain for retis_probe_config {}
 
@@ -33,18 +19,6 @@ use ct_hook_uapi::ct_event;
 unsafe impl plain::Plain for ct_event {}
 
 pub(crate) mod nft_hook_uapi;
-use nft_hook_uapi::nft_offsets;
-
-impl Default for nft_offsets {
-    fn default() -> Self {
-        Self {
-            nft_chain: -1,
-            nft_rule: -1,
-            nft_verdict: -1,
-            nft_type: -1,
-        }
-    }
-}
 
 pub(crate) mod skb_drop_hook_uapi;
 
@@ -79,3 +53,5 @@ unsafe impl plain::Plain for retis_log_event {}
 
 pub(crate) mod meta_filter_uapi;
 pub(crate) mod packet_filter_uapi;
+
+pub(crate) mod retis_context_uapi;

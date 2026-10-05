@@ -290,7 +290,7 @@ skip_gso:
 DEFINE_HOOK(
 	struct sk_buff *skb;
 
-	skb = retis_get_sk_buff(ctx);
+	skb = retis_get_arg(ctx, struct sk_buff *);
 	if (skb)
 		process_skb(ctx, event, skb);
 

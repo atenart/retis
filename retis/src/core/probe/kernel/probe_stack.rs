@@ -85,11 +85,11 @@ impl ProbeStackFilter {
 
             // Filter out symbols not operating on a type we can retrieve
             // data from.
-            let params = symbol.get_parameters()?;
+            let params = symbol.get_parameters_name()?;
             if !self
                 .known_kernel_types
                 .iter()
-                .any(|t| params.iter().any(|(_, p)| p == t))
+                .any(|t| params.iter().any(|p| p == t))
             {
                 return Ok(());
             }

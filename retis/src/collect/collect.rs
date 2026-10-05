@@ -435,14 +435,14 @@ impl Collectors {
 
         // Setup user defined probes.
         let filter = |symbol: &Symbol, options: &HashSet<ProbeOption>| -> Result<bool> {
-            let params = symbol.get_parameters()?;
+            let params = symbol.get_parameters_name()?;
             let has_known_type = self
                 .known_kernel_types
                 .iter()
-                .any(|t| params.iter().any(|(_, p)| p == t));
+                .any(|t| params.iter().any(|p| p == t));
 
             if options.contains(&ProbeOption::Ftrace)
-                && !params.iter().any(|(_, p)| p == "struct sk_buff *")
+                && !params.iter().any(|p| p == "struct sk_buff *")
             {
                 bail!("ftrace option is invalid for '{symbol}': function has no sk_buff parameter");
             }

@@ -5,14 +5,6 @@
 
 #include <bpf/bpf_tracing.h>
 
-#define MIN(a, b)	(((a) < (b)) ? (a) : (b))
-
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#define BUILD_BUG_ON(cond)	_Static_assert(!(cond), "BUILD_BUG_ON failed " #cond)
-#else
-#define BUILD_BUG_ON(cond)
-#endif
-
 /* The following helper allows to compare the current attached function to its
  * definition. The check is done once and the cached.
  *

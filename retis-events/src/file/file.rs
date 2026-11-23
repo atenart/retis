@@ -2,7 +2,7 @@
 
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Read, Seek},
+    io::{BufRead, BufReader, Read},
     path::Path,
 };
 
@@ -23,13 +23,13 @@ pub enum FileType {
     Series,
 }
 
-pub trait ReadSeek: Read + Seek + Send + Sync {}
-impl<T> ReadSeek for T where T: Read + Seek + Send + Sync {}
+pub trait Reader: Read + Send + Sync {}
+impl<T> Reader for T where T: Read + Send + Sync {}
 
 /// File events factory retrieving and unmarshaling events
 /// parts.
 pub struct FileEventsFactory {
-    reader: BufReader<Box<dyn ReadSeek>>,
+    reader: BufReader<Box<dyn Reader>>,
     filetype: FileType,
     compat_version: CompatVersion,
 }
@@ -48,7 +48,7 @@ impl FileEventsFactory {
     pub fn from_event_file(file: EventFile) -> Result<Self> {
         // Using the RotateReader in both cases should work but not using it
         // will save some cycles without impacting maintenance too much.
-        let mut reader: BufReader<Box<dyn ReadSeek>> = BufReader::new(match file.use_rotation {
+        let mut reader: BufReader<Box<dyn Reader>> = BufReader::new(match file.use_rotation {
             true => Box::new(RotateReader::new(file.path)?),
             false => Box::new(
                 File::open(file.path.clone())
@@ -105,19 +105,18 @@ impl FileEventsFactory {
 
     fn detect_type<T>(reader: &mut T) -> Result<(FileType, CompatVersion)>
     where
-        T: BufRead + Seek,
+        T: BufRead,
     {
-        let mut line = String::new();
+        let buf = reader.fill_buf()?;
+        let nl = buf
+            .iter()
+            .position(|c| *c == b'\n')
+            .ok_or_else(|| anyhow!("Input file is malformed: no newline"))?;
 
-        match reader.read_line(&mut line) {
-            Err(e) => return Err(e.into()),
-            Ok(0) => return Err(anyhow!("File is empty")),
-            Ok(_) => (),
-        }
-        reader.rewind()?;
-
-        let first: serde_json::Value = serde_json::from_str(line.as_str())
-            .map_err(|e| anyhow!("Failed to parse event file: {:?}", e))?;
+        let first: serde_json::Value = serde_json::from_str(
+            str::from_utf8(&buf[..=nl]).map_err(|e| anyhow!("Input file is malformed: {e}"))?,
+        )
+        .map_err(|e| anyhow!("Failed to parse event file: {:?}", e))?;
 
         Ok(match first {
             serde_json::Value::Object(ref obj) => (FileType::Event, guess_version(obj)?),

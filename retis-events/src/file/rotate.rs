@@ -1,7 +1,7 @@
 /// # Writer handling file rotation
 use std::{
     fs::{self, File, OpenOptions},
-    io::{self, BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write},
+    io::{self, BufRead, BufReader, BufWriter, Read, Write},
     ops::Drop,
     path::{Path, PathBuf},
 };
@@ -389,12 +389,5 @@ impl Read for RotateReader {
 
         // Try reading again.
         self.read(buf)
-    }
-}
-
-impl Seek for RotateReader {
-    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
-        // We only support seeking in the current file.
-        self.inner.seek(pos)
     }
 }

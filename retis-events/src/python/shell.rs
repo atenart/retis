@@ -5,13 +5,14 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::{exceptions::PyRuntimeError, prelude::*, types::PyDict};
 
 use super::python::*;
 use crate::file::rotate::EventFile;
 
 /// Create a python shell and execute the provided script.
 pub fn shell_execute(file: EventFile, script: Option<&PathBuf>, args: &[String]) -> Result<()> {
+    let stdin = file.path.to_str() == Some("/dev/stdin");
     let event_file = PyEventFile::from_event_file(file)?;
 
     let argv = match script {
@@ -34,7 +35,14 @@ pub fn shell_execute(file: EventFile, script: Option<&PathBuf>, args: &[String])
                 let script = fs::read_to_string(script)?;
                 shell.run(&CString::new(script)?, &argv)
             }
-            None => shell.interact(),
+            None => {
+                if stdin {
+                    return Err(PyRuntimeError::new_err(
+                        "Cannot launch the interactive shell while piping input data to stdin",
+                    ));
+                }
+                shell.interact()
+            }
         };
         if let Err(e) = &ret {
             e.display(py);

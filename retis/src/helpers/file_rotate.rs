@@ -68,6 +68,11 @@ impl FromStr for InputDataFile {
     type Err = String;
 
     fn from_str(path: &str) -> std::result::Result<Self, Self::Err> {
+        let path = match path {
+            "-" => "/dev/stdin".to_string(),
+            p => p.to_string(),
+        };
+
         let input = match path.strip_suffix("..") {
             Some(path_first) => Self(EventFile {
                 path: PathBuf::from(path_first),

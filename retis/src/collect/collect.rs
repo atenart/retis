@@ -548,11 +548,16 @@ impl Collectors {
 
         // Write the events to a file if asked to.
         if let Some(out) = collect.out.as_ref() {
+            let out = match out.to_str() {
+                Some("-") => std::path::PathBuf::from("/dev/stdout"),
+                _ => out.clone(),
+            };
+
             pipes.push(ItemDisplayPipe::new(
                 ItemFormatter::new(EventFormat::Json, collect.event_threads, self.run.clone()),
                 Box::new(
                     RotateWriter::new(
-                        out,
+                        &out,
                         match &collect.out_rotate {
                             Some(s) => Some(rotation_policy_from_str(s)?),
                             None => None,

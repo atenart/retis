@@ -65,7 +65,11 @@ try:
 except ImportError:
     pass
 
-code.interact(local=locals())";
+code.interact(
+  local=locals(),
+  banner=\"Welcome to the Retis interactive Python console.\",\
+  exitmsg=\"Exiting interactive console...\"
+)";
 
     fn new(py: Python<'a>, file: PyEventFile) -> PyResult<Self> {
         let globals = PyDict::new(py);

@@ -3,7 +3,12 @@
 //! This module contains python bindings for retis events so that they can
 //! be inspected in post-processing tools written in python.
 
-use std::{collections::HashMap, ffi::CString, path::PathBuf};
+use std::{
+    collections::HashMap,
+    ffi::CString,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use pyo3::{
     exceptions::{PyKeyError, PyRuntimeError},
@@ -210,20 +215,18 @@ impl PyEventSeries {
 /// ```
 #[pyclass(name = "EventReader")]
 pub(crate) struct PyEventReader {
-    factory: FileEventsFactory,
+    factory: Arc<Mutex<FileEventsFactory>>,
 }
 
 impl PyEventReader {
-    fn from_event_file(file: EventFile) -> PyResult<Self> {
-        let factory = FileEventsFactory::from_event_file(file)?;
-
-        if matches!(factory.file_type(), FileType::Series) {
+    fn from_factory(factory: Arc<Mutex<FileEventsFactory>>) -> PyResult<Self> {
+        if matches!(factory.lock().unwrap().file_type(), FileType::Series) {
             return Err(PyRuntimeError::new_err(
                 "Cannot create a EventReader from a sorted file. Use an SeriesReader instead",
             ));
         }
 
-        Ok(PyEventReader { factory })
+        Ok(Self { factory })
     }
 }
 
@@ -231,18 +234,20 @@ impl PyEventReader {
 impl PyEventReader {
     #[new]
     pub(crate) fn new(path: PathBuf) -> PyResult<Self> {
-        Self::from_event_file(EventFile {
-            path,
-            use_rotation: false,
-        })
+        Self::from_factory(Arc::new(Mutex::new(
+            FileEventsFactory::from_path(path)
+                .map_err(|e| PyRuntimeError::new_err(format!("{e}")))?,
+        )))
     }
 
     #[classmethod]
     pub(crate) fn with_rotation(_: &Bound<'_, PyType>, path: PathBuf) -> PyResult<Self> {
-        Self::from_event_file(EventFile {
-            path,
-            use_rotation: true,
-        })
+        Self::from_factory(Arc::new(Mutex::new(FileEventsFactory::from_event_file(
+            EventFile {
+                path,
+                use_rotation: true,
+            },
+        )?)))
     }
 
     // Implementation of the iterator protocol.
@@ -251,11 +256,8 @@ impl PyEventReader {
     }
 
     // Return the next Event.
-    pub(crate) fn __next__(
-        mut slf: PyRefMut<'_, Self>,
-        py: Python<'_>,
-    ) -> PyResult<Option<Py<PyAny>>> {
-        match slf.factory.next_event()? {
+    pub(crate) fn __next__(slf: PyRefMut<'_, Self>, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        match slf.factory.lock().unwrap().next_event()? {
             Some(event) => {
                 let pyevent: Bound<'_, PyEvent> = Bound::new(py, PyEvent::new(py, event)?)?;
                 Ok(Some(pyevent.into_any().into()))
@@ -280,21 +282,29 @@ impl PyEventReader {
 /// ```
 #[pyclass(name = "SeriesReader")]
 pub(crate) struct PySeriesReader {
-    factory: FileEventsFactory,
+    factory: Arc<Mutex<FileEventsFactory>>,
+}
+
+impl PySeriesReader {
+    fn from_factory(factory: Arc<Mutex<FileEventsFactory>>) -> PyResult<Self> {
+        if matches!(factory.lock().unwrap().file_type(), FileType::Event) {
+            return Err(PyRuntimeError::new_err(
+                "Cannot create a SeriesReader from an unsorted file. Use an EventReader instead",
+            ));
+        }
+
+        Ok(Self { factory })
+    }
 }
 
 #[pymethods]
 impl PySeriesReader {
     #[new]
     pub(crate) fn new(path: PathBuf) -> PyResult<Self> {
-        let factory = FileEventsFactory::from_path(path)?;
-
-        if matches!(factory.file_type(), FileType::Event) {
-            return Err(PyRuntimeError::new_err(
-                "Cannot create a SeriesReader from an unsorted file. Use an EventReader instead",
-            ));
-        }
-        Ok(PySeriesReader { factory })
+        Self::from_factory(Arc::new(Mutex::new(
+            FileEventsFactory::from_path(path)
+                .map_err(|e| PyRuntimeError::new_err(format!("{e}")))?,
+        )))
     }
 
     // Implementation of the iterator protocol.
@@ -303,11 +313,8 @@ impl PySeriesReader {
     }
 
     // Return the next EventSeries.
-    pub(crate) fn __next__(
-        mut slf: PyRefMut<'_, Self>,
-        py: Python<'_>,
-    ) -> PyResult<Option<Py<PyAny>>> {
-        match slf.factory.next_series()? {
+    pub(crate) fn __next__(slf: PyRefMut<'_, Self>, py: Python<'_>) -> PyResult<Option<Py<PyAny>>> {
+        match slf.factory.lock().unwrap().next_series()? {
             Some(series) => {
                 let pyseries: Bound<'_, PyEventSeries> =
                     Bound::new(py, PyEventSeries::new(py, series)?)?;
@@ -338,17 +345,14 @@ impl PySeriesReader {
 /// ```
 #[pyclass(name = "EventFile")]
 pub(crate) struct PyEventFile {
-    file: EventFile,
-    ftype: FileType,
+    factory: Arc<Mutex<FileEventsFactory>>,
 }
 
 impl PyEventFile {
     pub(crate) fn from_event_file(file: EventFile) -> PyResult<Self> {
-        let ftype = FileEventsFactory::from_event_file(file.clone())?
-            .file_type()
-            .clone();
-
-        Ok(Self { file, ftype })
+        Ok(Self {
+            factory: Arc::new(Mutex::new(FileEventsFactory::from_event_file(file)?)),
+        })
     }
 }
 
@@ -356,42 +360,39 @@ impl PyEventFile {
 impl PyEventFile {
     #[new]
     pub(crate) fn new(path: PathBuf) -> PyResult<Self> {
-        let file = EventFile {
+        Self::from_event_file(EventFile {
             path,
             use_rotation: false,
-        };
-
-        Self::from_event_file(file)
+        })
     }
 
     #[classmethod]
     pub(crate) fn with_rotation(_: &Bound<'_, PyType>, path: PathBuf) -> PyResult<Self> {
-        let mut slf = Self::new(path)?;
+        let slf = Self::new(path)?;
 
-        if matches!(slf.ftype, FileType::Series) {
+        if matches!(slf.factory.lock().unwrap().file_type(), FileType::Series) {
             return Err(PyRuntimeError::new_err(
                 "Cannot use rotation on event series",
             ));
         }
 
-        slf.file.use_rotation = true;
         Ok(slf)
     }
 
     // Returns whether the file is sorted.
     pub(crate) fn sorted(&self) -> PyResult<bool> {
-        match self.ftype {
+        match self.factory.lock().unwrap().file_type() {
             FileType::Series => Ok(true),
             FileType::Event => Ok(false),
         }
     }
 
     pub(crate) fn events(&self) -> PyResult<PyEventReader> {
-        PyEventReader::from_event_file(self.file.clone())
+        PyEventReader::from_factory(Arc::clone(&self.factory))
     }
 
     pub(crate) fn series(&self) -> PyResult<PySeriesReader> {
-        PySeriesReader::new(self.file.path.clone())
+        PySeriesReader::from_factory(Arc::clone(&self.factory))
     }
 }
 
